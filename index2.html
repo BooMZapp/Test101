@@ -262,6 +262,7 @@
                 activeClass: 'วิชาคณิตศาสตร์พื้นฐาน',
                 classes: {
                     'วิชาคณิตศาสตร์พื้นฐาน': {
+                        nextId: 6, // Start next ID after the last default student
                         settings: {
                             gradeCriteria: [
                                 { grade: 'A', minScore: 80 },
@@ -296,6 +297,13 @@
                         if (!appState.classes || !appState.activeClass || !appState.classes[appState.activeClass]) {
                            throw new Error("Invalid state structure or dangling activeClass");
                         }
+                        // Ensure all classes have a nextId property for backwards compatibility
+                        Object.values(appState.classes).forEach(classData => {
+                            if (!classData.nextId) {
+                                const maxId = classData.students.reduce((max, s) => Math.max(max, s.id), 0);
+                                classData.nextId = maxId + 1;
+                            }
+                        });
                     } else {
                         appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
                     }
@@ -670,8 +678,10 @@
             addClassBtn.addEventListener('click', () => {
                 const className = prompt('กรุณาใส่ชื่อห้องเรียน/วิชาใหม่:');
                 if (className && !appState.classes[className]) {
-                    appState.classes[className] = JSON.parse(JSON.stringify(DEFAULT_STATE.classes['วิชาคณิตศาสตร์พื้นฐาน']));
+                    const newClassTemplate = JSON.parse(JSON.stringify(DEFAULT_STATE.classes['วิชาคณิตศาสตร์พื้นฐาน']));
+                    appState.classes[className] = newClassTemplate;
                     appState.classes[className].students = []; // Start with no students
+                    appState.classes[className].nextId = 1; // Start counter for new class
                     appState.activeClass = className;
                     saveState();
                     initApp();
@@ -696,17 +706,18 @@
             // Student Management
             addStudentForm.addEventListener('submit', (e) => {
                 e.preventDefault();
+                const currentClass = appState.classes[appState.activeClass];
                 const newStudent = {
-                    id: Date.now(),
+                    id: currentClass.nextId++, // Use and increment the class-specific counter
                     name: studentNameInput.value.trim(),
                     scores: {}
                 };
-                const { scoreColumns } = appState.classes[appState.activeClass].settings;
+                const { scoreColumns } = currentClass.settings;
                 scoreColumns.forEach(col => {
                     const input = document.getElementById(col.id);
                     newStudent.scores[col.id] = parseFloat(input.value) || 0;
                 });
-                appState.classes[appState.activeClass].students.push(newStudent);
+                currentClass.students.push(newStudent);
                 calculateAll();
                 saveState();
                 renderTable();
@@ -816,10 +827,11 @@
                 if (!pendingImportData) return;
 
                 try {
-                    const { scoreColumns } = appState.classes[appState.activeClass].settings;
+                    const currentClass = appState.classes[appState.activeClass];
+                    const { scoreColumns } = currentClass.settings;
                     const nameHeader = pendingImportData.meta.fields[0]; // Assume first col is name
                     const newStudents = pendingImportData.data.map(row => {
-                        const student = { id: Date.now() + Math.random(), name: row[nameHeader], scores: {} };
+                        const student = { id: currentClass.nextId++, name: row[nameHeader], scores: {} };
                         scoreColumns.forEach(col => {
                             const csvColName = pendingImportData.meta.fields.find(f => f.toLowerCase().includes(col.name.toLowerCase()));
                             if (csvColName) {
@@ -832,9 +844,9 @@
                     });
                     
                     if (mode === 'replace') {
-                        appState.classes[appState.activeClass].students = newStudents;
+                        currentClass.students = newStudents;
                     } else { // append
-                        appState.classes[appState.activeClass].students.push(...newStudents);
+                        currentClass.students.push(...newStudents);
                     }
                     
                     calculateAll();

@@ -109,9 +109,9 @@
                     </button>
                     <input type="file" id="csv-file-input" class="hidden" accept=".csv">
 
-                    <button id="export-pdf-btn" class="bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-2 px-4 rounded-full hover:shadow-xl transition-all duration-300 shadow-lg text-sm transform hover:scale-105 flex items-center justify-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        <span>ส่งออก PDF</span>
+                    <button id="export-csv-btn" class="bg-gradient-to-r from-green-500 to-teal-600 text-white font-bold py-2 px-4 rounded-full hover:shadow-xl transition-all duration-300 shadow-lg text-sm transform hover:scale-105 flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2M8 12l4 4m0 0l4-4m-4 4V3"></path></svg>
+                        <span>ส่งออก CSV</span>
                     </button>
                  </div>
             </section>
@@ -163,7 +163,7 @@
 
     <!-- ### MODALS ### -->
     <!-- Settings Modal -->
-    <div id="settings-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4">
+    <div id="settings-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4 z-50">
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div class="p-6 border-b dark:border-slate-700 flex justify-between items-center">
                 <h2 class="text-2xl font-bold">ตั้งค่า</h2>
@@ -189,6 +189,22 @@
             </div>
             <div class="p-6 bg-slate-50 dark:bg-slate-900/50 border-t dark:border-slate-700 text-right">
                 <button id="save-settings-btn" class="bg-green-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-600 transition">บันทึก</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Import Choice Modal -->
+    <div id="import-choice-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md">
+            <div class="p-6">
+                <h2 class="text-xl font-bold text-center mb-6">คุณต้องการทำอะไรกับข้อมูลที่นำเข้า?</h2>
+                <div class="flex gap-4">
+                    <button id="import-replace-btn" class="w-full bg-orange-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-orange-600 transition">แทนที่ข้อมูลเดิม</button>
+                    <button id="import-append-btn" class="w-full bg-sky-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-sky-600 transition">เพิ่มต่อท้าย</button>
+                </div>
+            </div>
+             <div class="p-4 bg-slate-50 dark:bg-slate-900/50 text-center">
+                <button id="import-cancel-btn" class="text-sm font-medium text-red-600 hover:underline dark:text-red-500 dark:hover:underline">ยกเลิก</button>
             </div>
         </div>
     </div>
@@ -227,11 +243,19 @@
             const chartCanvas = document.getElementById('grade-chart');
             const importCsvBtn = document.getElementById('import-csv-btn');
             const csvFileInput = document.getElementById('csv-file-input');
-            const exportPdfBtn = document.getElementById('export-pdf-btn');
+            const exportCsvBtn = document.getElementById('export-csv-btn');
+            
+            // Import Modal Elements
+            const importChoiceModal = document.getElementById('import-choice-modal');
+            const importReplaceBtn = document.getElementById('import-replace-btn');
+            const importAppendBtn = document.getElementById('import-append-btn');
+            const importCancelBtn = document.getElementById('import-cancel-btn');
+
 
             // --- ### 2. STATE MANAGEMENT ### ---
             let appState = {};
             let gradeChart = null;
+            let pendingImportData = null; // To hold parsed CSV data
 
             const DEFAULT_STATE = {
                 theme: 'light',
@@ -457,12 +481,12 @@
                 const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
                 const labelColor = isDarkMode ? '#cbd5e1' : '#475569';
                 
-                const gradeColors = {
-                    'A': { base: '#22c55e', gradient: '#4ade80' },
-                    'B': { base: '#3b82f6', gradient: '#60a5fa' },
-                    'C': { base: '#eab308', gradient: '#facc15' },
-                    'D': { base: '#f97316', gradient: '#fb923c' },
-                    'F': { base: '#ef4444', gradient: '#f87171' },
+                const solidGradeColors = {
+                    'A': '#22c55e',
+                    'B': '#3b82f6',
+                    'C': '#eab308',
+                    'D': '#f97316',
+                    'F': '#ef4444',
                 };
 
                 if (gradeChart) {
@@ -471,13 +495,7 @@
 
                 const ctx = chartCanvas.getContext('2d');
                 
-                const backgroundColors = gradeLabels.map(grade => {
-                    const colors = gradeColors[grade] || { base: '#94a3b8', gradient: '#cbd5e1' };
-                    const gradient = ctx.createLinearGradient(0, 0, ctx.canvas.clientWidth, 0);
-                    gradient.addColorStop(0, colors.base);
-                    gradient.addColorStop(1, colors.gradient);
-                    return gradient;
-                });
+                const backgroundColors = gradeLabels.map(grade => solidGradeColors[grade] || '#94a3b8');
 
                 gradeChart = new Chart(ctx, {
                     type: 'bar',
@@ -786,71 +804,90 @@
                         header: true,
                         skipEmptyLines: true,
                         complete: (results) => {
-                           try {
-                                const { scoreColumns } = appState.classes[appState.activeClass].settings;
-                                const nameHeader = results.meta.fields[0]; // Assume first col is name
-                                const newStudents = results.data.map(row => {
-                                    const student = { id: Date.now() + Math.random(), name: row[nameHeader], scores: {} };
-                                    scoreColumns.forEach(col => {
-                                        // Find CSV column that matches setting name
-                                        const csvColName = results.meta.fields.find(f => f.toLowerCase().includes(col.name.toLowerCase()));
-                                        if (csvColName) {
-                                            student.scores[col.id] = parseFloat(row[csvColName]) || 0;
-                                        } else {
-                                            student.scores[col.id] = 0;
-                                        }
-                                    });
-                                    return student;
-                                });
-                                appState.classes[appState.activeClass].students.push(...newStudents);
-                                calculateAll();
-                                saveState();
-                                renderAll();
-                                alert(`นำเข้าข้อมูลนักเรียน ${newStudents.length} คนสำเร็จ!`);
-                           } catch (err) {
-                               alert('ไฟล์ CSV ไม่ถูกต้อง หรือโครงสร้างไม่ตรงกับคอลัมน์คะแนนปัจจุบัน');
-                               console.error(err);
-                           }
-                           csvFileInput.value = ''; // Reset input
+                            pendingImportData = results;
+                            importChoiceModal.classList.add('active');
+                            csvFileInput.value = ''; // Reset input
                         }
                     });
                 }
             });
 
-            exportPdfBtn.addEventListener('click', () => {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
+            function handleImport(mode) {
+                if (!pendingImportData) return;
+
+                try {
+                    const { scoreColumns } = appState.classes[appState.activeClass].settings;
+                    const nameHeader = pendingImportData.meta.fields[0]; // Assume first col is name
+                    const newStudents = pendingImportData.data.map(row => {
+                        const student = { id: Date.now() + Math.random(), name: row[nameHeader], scores: {} };
+                        scoreColumns.forEach(col => {
+                            const csvColName = pendingImportData.meta.fields.find(f => f.toLowerCase().includes(col.name.toLowerCase()));
+                            if (csvColName) {
+                                student.scores[col.id] = parseFloat(row[csvColName]) || 0;
+                            } else {
+                                student.scores[col.id] = 0;
+                            }
+                        });
+                        return student;
+                    });
+                    
+                    if (mode === 'replace') {
+                        appState.classes[appState.activeClass].students = newStudents;
+                    } else { // append
+                        appState.classes[appState.activeClass].students.push(...newStudents);
+                    }
+                    
+                    calculateAll();
+                    saveState();
+                    renderAll();
+                    alert(`ดำเนินการสำเร็จ! จัดการข้อมูลนักเรียน ${newStudents.length} คน`);
+               } catch (err) {
+                   alert('ไฟล์ CSV ไม่ถูกต้อง หรือโครงสร้างไม่ตรงกับคอลัมน์คะแนนปัจจุบัน');
+                   console.error(err);
+               } finally {
+                    pendingImportData = null;
+                    importChoiceModal.classList.remove('active');
+               }
+            }
+            
+            importReplaceBtn.addEventListener('click', () => handleImport('replace'));
+            importAppendBtn.addEventListener('click', () => handleImport('append'));
+            importCancelBtn.addEventListener('click', () => {
+                pendingImportData = null;
+                importChoiceModal.classList.remove('active');
+            });
+
+            exportCsvBtn.addEventListener('click', () => {
                 const currentClass = appState.classes[appState.activeClass];
                 const { settings, students } = currentClass;
                 
-                // Add Kanit font requires complex setup. We need to use a font that jsPDF supports by default.
-                // 'helvetica' is a safe choice.
-                doc.addFont('js/Kanit-Regular.ttf', 'Kanit', 'normal'); // This will likely fail in browser without font file.
-                doc.setFont('helvetica');
-
-                doc.text(`ตารางผลการเรียน: ${appState.activeClass}`, 14, 15);
+                const headers = ['ชื่อ-สกุล', ...settings.scoreColumns.map(c => c.name), 'คะแนนรวม', 'เกรด'];
                 
-                const head = [['#', 'Name', ...settings.scoreColumns.map(c => c.name), 'Total', 'Grade']];
-                const body = students.map((s, i) => [
-                    i + 1,
-                    s.name, // Non-ASCII characters might not render correctly without proper font setup
-                    ...settings.scoreColumns.map(c => s.scores[c.id] || 0),
-                    s.totalScore.toFixed(2),
-                    s.grade
-                ]);
-                
-                doc.autoTable({
-                    head: head,
-                    body: body,
-                    startY: 20,
-                    styles: { font: 'helvetica' }, // Using standard font is safer
-                    headStyles: { fillColor: [41, 128, 185] },
-                    // To handle Thai characters, a custom font would need to be properly embedded.
-                    // This is a complex task for a single HTML file setup.
+                const data = students.map(s => {
+                    const row = { 'ชื่อ-สกุล': s.name };
+                    settings.scoreColumns.forEach(col => {
+                        row[col.name] = s.scores[col.id] || 0;
+                    });
+                    row['คะแนนรวม'] = s.totalScore.toFixed(2);
+                    row['เกรด'] = s.grade;
+                    return row;
                 });
-
-                doc.save(`grades_${appState.activeClass.replace(/\s/g, '_')}.pdf`);
+                
+                const csvString = Papa.unparse({
+                    fields: headers,
+                    data: data
+                });
+                
+                const blob = new Blob(["\uFEFF" + csvString], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                const date = new Date().toISOString().slice(0, 10);
+                link.setAttribute("download", `grades_${appState.activeClass.replace(/\s/g, '_')}_${date}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             });
 
 
@@ -882,5 +919,4 @@
     </script>
 </body>
 </html>
-
 

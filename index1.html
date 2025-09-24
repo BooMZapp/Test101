@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="th" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบตัดเกรด (เวอร์ชัน PRO)</title>
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts (Kanit) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <style>
+        body { font-family: 'Kanit', sans-serif; }
+        .modal { display: none; }
+        .modal.active { display: flex; }
+        [contenteditable]:focus {
+            outline: 2px solid #3b82f6; /* blue-500 */
+            background-color: #eff6ff; /* blue-50 */
+            border-radius: 4px;
+        }
+    </style>
+    <script>
+        // Tailwind dark mode configuration
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 min-h-screen antialiased text-slate-800 dark:text-slate-200 transition-colors duration-300">
+
+    <!-- Main Container -->
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- Header and Controls -->
+        <header class="mb-6 flex flex-wrap items-center justify-between gap-4">
+            <h1 class="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-blue-500 bg-clip-text text-transparent pb-2">ระบบตัดเกรด PRO</h1>
+            <div class="flex items-center gap-2">
+                <button id="theme-toggle-btn" class="p-2 rounded-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                    <!-- Sun Icon -->
+                    <svg id="theme-icon-light" class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18a6 6 0 100-12 6 6 0 000 12z"></path></svg>
+                    <!-- Moon Icon -->
+                    <svg id="theme-icon-dark" class="w-6 h-6 text-indigo-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                </button>
+                 <button id="settings-btn" class="p-2 rounded-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="bg-white dark:bg-slate-800/50 rounded-2xl shadow-2xl p-6 md:p-8">
+            
+            <!-- Class Management -->
+            <section class="mb-6 flex flex-wrap gap-4 items-center">
+                <div class="flex-grow">
+                    <label for="class-select" class="block text-sm font-medium mb-1">ห้องเรียน/วิชา</label>
+                    <select id="class-select" class="w-full p-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 transition shadow-sm"></select>
+                </div>
+                <div class="flex gap-2 pt-6">
+                    <button id="add-class-btn" class="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition shadow">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    </button>
+                    <button id="delete-class-btn" class="p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition shadow">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            </section>
+            
+            <!-- Add Student Form -->
+            <section class="mb-8">
+                <form id="addStudentForm" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                    <div class="md:col-span-2">
+                        <label for="studentName" class="block text-sm font-medium mb-1">ชื่อ-สกุล</label>
+                        <input type="text" id="studentName" placeholder="เช่น สมชาย ใจดี" required class="w-full p-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 transition shadow-sm">
+                    </div>
+                    <!-- Score inputs will be generated by JS here -->
+                    <div id="score-inputs-container" class="contents"></div>
+                    <div class="md:col-span-1">
+                        <button type="submit" class="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600 transition-transform transform hover:scale-105 duration-300 shadow-lg flex items-center justify-center gap-2">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                            <span>เพิ่ม</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+             <!-- Main Action Buttons & Search -->
+            <section class="my-8 flex flex-wrap gap-4 items-center justify-between">
+                <div class="flex-grow relative">
+                     <label for="search-input" class="sr-only">ค้นหานักเรียน</label>
+                     <input type="text" id="search-input" placeholder="ค้นหานักเรียน..." class="w-full max-w-xs p-3 pl-10 border border-slate-300 dark:border-slate-600 rounded-full bg-slate-100 dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 transition">
+                     <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                     </div>
+                </div>
+                 <div class="flex flex-wrap gap-3">
+                    <button id="import-csv-btn" class="bg-gradient-to-r from-sky-500 to-blue-600 text-white font-bold py-2 px-4 rounded-full hover:shadow-xl transition-all duration-300 shadow-lg text-sm transform hover:scale-105 flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path></svg>
+                        <span>นำเข้า CSV</span>
+                    </button>
+                    <input type="file" id="csv-file-input" class="hidden" accept=".csv">
+
+                    <button id="export-pdf-btn" class="bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-2 px-4 rounded-full hover:shadow-xl transition-all duration-300 shadow-lg text-sm transform hover:scale-105 flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <span>ส่งออก PDF</span>
+                    </button>
+                 </div>
+            </section>
+            
+            <!-- Statistics and Chart -->
+            <section class="my-8 grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <div class="lg:col-span-2 p-6 bg-slate-100 dark:bg-slate-900/50 rounded-xl flex flex-col justify-center">
+                    <h3 class="text-xl font-bold text-center mb-6">สถิติภาพรวม</h3>
+                    <div id="stats-container" class="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <p class="text-sm text-slate-500 dark:text-slate-400">เฉลี่ย</p>
+                            <p id="stat-avg" class="text-2xl font-bold">-</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500 dark:text-slate-400">สูงสุด</p>
+                            <p id="stat-max" class="text-2xl font-bold text-green-500">-</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500 dark:text-slate-400">ต่ำสุด</p>
+                            <p id="stat-min" class="text-2xl font-bold text-red-500">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-3 p-6 bg-slate-100 dark:bg-slate-900/50 rounded-xl flex flex-col">
+                    <h3 class="text-xl font-bold text-center mb-4">การกระจายตัวของเกรด</h3>
+                    <div class="relative flex-grow min-h-[300px]">
+                        <canvas id="grade-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Table -->
+            <section>
+                 <h2 class="text-2xl font-bold mb-4">ตารางผลการเรียน</h2>
+                <div id="table-container" class="overflow-x-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-md">
+                    <table id="resultsTable" class="w-full min-w-[800px] text-sm text-left">
+                        <thead id="table-head" class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase text-xs">
+                            <!-- JS will populate this area -->
+                        </thead>
+                        <tbody id="table-body" class="divide-y divide-slate-200 dark:divide-slate-700">
+                            <!-- JS will populate this area -->
+                        </tbody>
+                    </table>
+                </div>
+                 <p id="no-data-message" class="text-center text-slate-500 py-8 hidden">ยังไม่มีข้อมูลนักเรียน</p>
+            </section>
+        </div>
+    </div>
+
+    <!-- ### MODALS ### -->
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b dark:border-slate-700 flex justify-between items-center">
+                <h2 class="text-2xl font-bold">ตั้งค่า</h2>
+                <button id="close-settings-btn" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">&times;</button>
+            </div>
+            <div class="p-6 space-y-8">
+                <!-- Grade Criteria Settings -->
+                <section>
+                    <h3 class="text-lg font-semibold mb-3">เกณฑ์การให้เกรด</h3>
+                    <div id="grade-criteria-container" class="space-y-2">
+                        <!-- JS will populate this -->
+                    </div>
+                </section>
+                <!-- Custom Score Columns Settings -->
+                <section>
+                    <h3 class="text-lg font-semibold mb-3">จัดการคอลัมน์คะแนน</h3>
+                    <div id="score-columns-container" class="space-y-3">
+                         <!-- JS will populate this -->
+                    </div>
+                    <button id="add-column-btn" class="mt-4 text-sm bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition">+ เพิ่มคอลัมน์</button>
+                    <p class="text-sm text-slate-500 mt-2">ผลรวมของน้ำหนักคะแนนทั้งหมดควรเท่ากับ 1.0</p>
+                </section>
+            </div>
+            <div class="p-6 bg-slate-50 dark:bg-slate-900/50 border-t dark:border-slate-700 text-right">
+                <button id="save-settings-btn" class="bg-green-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-600 transition">บันทึก</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Ensure this script runs after the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- ### 1. ELEMENT SELECTORS ### ---
+            const themeToggleBtn = document.getElementById('theme-toggle-btn');
+            const themeIconLight = document.getElementById('theme-icon-light');
+            const themeIconDark = document.getElementById('theme-icon-dark');
+            const settingsBtn = document.getElementById('settings-btn');
+            const settingsModal = document.getElementById('settings-modal');
+            const closeSettingsBtn = document.getElementById('close-settings-btn');
+            const saveSettingsBtn = document.getElementById('save-settings-btn');
+            const gradeCriteriaContainer = document.getElementById('grade-criteria-container');
+            const scoreColumnsContainer = document.getElementById('score-columns-container');
+            const addColumnBtn = document.getElementById('add-column-btn');
+            const classSelect = document.getElementById('class-select');
+            const addClassBtn = document.getElementById('add-class-btn');
+            const deleteClassBtn = document.getElementById('delete-class-btn');
+            const scoreInputsContainer = document.getElementById('score-inputs-container');
+            const addStudentForm = document.getElementById('addStudentForm');
+            const studentNameInput = document.getElementById('studentName');
+            const searchInput = document.getElementById('search-input');
+            const statsContainer = {
+                avg: document.getElementById('stat-avg'),
+                max: document.getElementById('stat-max'),
+                min: document.getElementById('stat-min'),
+            };
+            const tableContainer = document.getElementById('table-container');
+            const tableHead = document.getElementById('table-head');
+            const tableBody = document.getElementById('table-body');
+            const noDataMessage = document.getElementById('no-data-message');
+            const chartCanvas = document.getElementById('grade-chart');
+            const importCsvBtn = document.getElementById('import-csv-btn');
+            const csvFileInput = document.getElementById('csv-file-input');
+            const exportPdfBtn = document.getElementById('export-pdf-btn');
+
+            // --- ### 2. STATE MANAGEMENT ### ---
+            let appState = {};
+            let gradeChart = null;
+
+            const DEFAULT_STATE = {
+                theme: 'light',
+                activeClass: 'วิชาคณิตศาสตร์พื้นฐาน',
+                classes: {
+                    'วิชาคณิตศาสตร์พื้นฐาน': {
+                        settings: {
+                            gradeCriteria: [
+                                { grade: 'A', minScore: 80 },
+                                { grade: 'B', minScore: 70 },
+                                { grade: 'C', minScore: 60 },
+                                { grade: 'D', minScore: 50 },
+                                { grade: 'F', minScore: 0 },
+                            ],
+                            scoreColumns: [
+                                { id: 'workScore', name: 'คะแนนเก็บ', weight: 0.6 },
+                                { id: 'examScore', name: 'คะแนนสอบ', weight: 0.4 },
+                            ]
+                        },
+                        students: [
+                            { id: 1, name: 'อทิตยา ไชยพร', scores: { workScore: 82, examScore: 88 } },
+                            { id: 2, name: 'เบญจมาศ ศรีวรรณ', scores: { workScore: 76, examScore: 91 } },
+                            { id: 3, name: 'ชนานันท์ เล็กดี', scores: { workScore: 95, examScore: 85 } },
+                            { id: 4, name: 'ดวงใจ พิสิฐ', scores: { workScore: 68, examScore: 72 } },
+                            { id: 5, name: 'เอกชัย ยอดศรี', scores: { workScore: 54, examScore: 63 } }
+                        ]
+                    }
+                }
+            };
+            
+            // Function to load state from localStorage with robust error handling
+            function loadState() {
+                try {
+                    const savedState = localStorage.getItem('gradeAppProState');
+                    if (savedState) {
+                        appState = JSON.parse(savedState);
+                        // Basic validation to prevent crash on corrupted data
+                        if (!appState.classes || !appState.activeClass || !appState.classes[appState.activeClass]) {
+                           throw new Error("Invalid state structure or dangling activeClass");
+                        }
+                    } else {
+                        appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+                    }
+                } catch (error) {
+                    console.error("Failed to load or parse state, reverting to default.", error);
+                    appState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+                }
+            }
+
+            // Function to save the current state to localStorage
+            function saveState() {
+                localStorage.setItem('gradeAppProState', JSON.stringify(appState));
+            }
+
+            // --- ### 3. CORE LOGIC & UTILITIES ### ---
+
+            // Recalculates total scores and grades for all students in the active class
+            function calculateAll() {
+                const currentClass = appState.classes[appState.activeClass];
+                if (!currentClass) return;
+
+                const { settings, students } = currentClass;
+                
+                students.forEach(student => {
+                    let totalScore = 0;
+                    settings.scoreColumns.forEach(col => {
+                        const score = student.scores[col.id] || 0;
+                        totalScore += score * col.weight;
+                    });
+                    student.totalScore = totalScore;
+                    student.grade = getGrade(totalScore, settings.gradeCriteria);
+                });
+            }
+            
+            // Determines grade based on score and custom criteria
+            function getGrade(score, criteria) {
+                // Sort criteria descending by minScore to ensure correct evaluation
+                const sortedCriteria = [...criteria].sort((a, b) => b.minScore - a.minScore);
+                for (const level of sortedCriteria) {
+                    if (score >= level.minScore) {
+                        return level.grade;
+                    }
+                }
+                return 'N/A'; // Should not happen with a 0-score level
+            }
+
+            // --- ### 4. UI RENDERING & UPDATES ### ---
+
+            function renderAll() {
+                renderClassSelector();
+                renderScoreInputs();
+                renderTable();
+                updateStats();
+                updateChart();
+            }
+            
+            function renderClassSelector() {
+                classSelect.innerHTML = '';
+                Object.keys(appState.classes).forEach(className => {
+                    const option = document.createElement('option');
+                    option.value = className;
+                    option.textContent = className;
+                    if (className === appState.activeClass) {
+                        option.selected = true;
+                    }
+                    classSelect.appendChild(option);
+                });
+            }
+
+            function renderScoreInputs() {
+                scoreInputsContainer.innerHTML = '';
+                const { scoreColumns } = appState.classes[appState.activeClass].settings;
+                scoreColumns.forEach(col => {
+                    const div = document.createElement('div');
+                    div.innerHTML = `
+                        <label for="${col.id}" class="block text-sm font-medium mb-1">${col.name}</label>
+                        <input type="number" id="${col.id}" placeholder="0-100" required min="0" max="100" class="w-full p-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-green-500 transition shadow-sm">
+                    `;
+                    scoreInputsContainer.appendChild(div);
+                });
+            }
+
+            function renderTable() {
+                const currentClass = appState.classes[appState.activeClass];
+                if (!currentClass) {
+                     tableContainer.classList.add('hidden');
+                     noDataMessage.classList.remove('hidden');
+                     return;
+                }
+                
+                const { settings, students } = currentClass;
+                const searchTerm = searchInput.value.toLowerCase();
+                const filteredStudents = students.filter(s => s.name.toLowerCase().includes(searchTerm));
+
+                // Render Table Head
+                let headHTML = '<tr><th class="p-4 w-12 text-center">#</th><th class="p-4">ชื่อ-สกุล</th>';
+                settings.scoreColumns.forEach(col => {
+                    headHTML += `<th class="p-4 text-center">${col.name} (${(col.weight * 100)}%)</th>`;
+                });
+                headHTML += '<th class="p-4 text-center font-bold">คะแนนรวม</th><th class="p-4 text-center font-bold">เกรด</th><th class="p-4 w-20 text-center">จัดการ</th></tr>';
+                tableHead.innerHTML = headHTML;
+                
+                // Render Table Body
+                tableBody.innerHTML = '';
+                if (filteredStudents.length === 0) {
+                     tableContainer.classList.add('hidden');
+                     noDataMessage.classList.remove('hidden');
+                     noDataMessage.textContent = searchTerm ? 'ไม่พบนักเรียนที่ค้นหา' : 'ยังไม่มีข้อมูลนักเรียนในห้องนี้';
+                } else {
+                     tableContainer.classList.remove('hidden');
+                     noDataMessage.classList.add('hidden');
+                }
+
+                filteredStudents.forEach((student, index) => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors';
+                    row.dataset.studentId = student.id;
+
+                    let rowHTML = `<td class="p-3 text-center text-slate-500">${index + 1}</td>
+                                   <td class="p-3 font-medium" contenteditable="true" data-field="name">${student.name}</td>`;
+                    
+                    settings.scoreColumns.forEach(col => {
+                         rowHTML += `<td class="p-3 text-center" contenteditable="true" data-field="scores" data-col-id="${col.id}">${student.scores[col.id] || 0}</td>`;
+                    });
+
+                    const gradeColor = getGradeColor(student.grade);
+                    rowHTML += `<td class="p-3 text-center font-bold text-blue-600">${student.totalScore !== undefined ? student.totalScore.toFixed(2) : '-'}</td>
+                                <td class="p-3 text-center font-bold text-xl ${gradeColor}">${student.grade || '-'}</td>
+                                <td class="p-3 text-center">
+                                    <button class="delete-btn text-slate-400 hover:text-red-500 transition-colors p-1" title="ลบข้อมูล">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                </td>`;
+                    row.innerHTML = rowHTML;
+                    tableBody.appendChild(row);
+                });
+            }
+            
+            function getGradeColor(grade) {
+                switch (grade) {
+                    case 'A': return 'text-green-500';
+                    case 'B': return 'text-blue-500';
+                    case 'C': return 'text-yellow-500';
+                    case 'D': return 'text-orange-500';
+                    case 'F': return 'text-red-500';
+                    default: return 'text-slate-500';
+                }
+            }
+            
+            function updateStats() {
+                const students = appState.classes[appState.activeClass]?.students || [];
+                if (students.length === 0) {
+                    statsContainer.avg.textContent = '-';
+                    statsContainer.max.textContent = '-';
+                    statsContainer.min.textContent = '-';
+                    return;
+                }
+                const scores = students.map(s => s.totalScore).filter(s => s !== undefined);
+                if (scores.length === 0) {
+                    statsContainer.avg.textContent = '-';
+                    statsContainer.max.textContent = '-';
+                    statsContainer.min.textContent = '-';
+                    return;
+                }
+                const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+                const max = Math.max(...scores);
+                const min = Math.min(...scores);
+                statsContainer.avg.textContent = avg.toFixed(2);
+                statsContainer.max.textContent = max.toFixed(2);
+                statsContainer.min.textContent = min.toFixed(2);
+            }
+            
+            function updateChart() {
+                 const currentClass = appState.classes[appState.activeClass];
+                 if (!currentClass) return;
+
+                const { settings, students } = currentClass;
+                const sortedCriteria = [...settings.gradeCriteria].sort((a, b) => b.minScore - a.minScore);
+                const gradeLabels = sortedCriteria.map(c => c.grade);
+                const gradeCounts = gradeLabels.map(grade => students.filter(s => s.grade === grade).length);
+                
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+                const labelColor = isDarkMode ? '#cbd5e1' : '#475569';
+                
+                const gradeColors = {
+                    'A': { base: '#22c55e', gradient: '#4ade80' },
+                    'B': { base: '#3b82f6', gradient: '#60a5fa' },
+                    'C': { base: '#eab308', gradient: '#facc15' },
+                    'D': { base: '#f97316', gradient: '#fb923c' },
+                    'F': { base: '#ef4444', gradient: '#f87171' },
+                };
+
+                if (gradeChart) {
+                    gradeChart.destroy();
+                }
+
+                const ctx = chartCanvas.getContext('2d');
+                
+                const backgroundColors = gradeLabels.map(grade => {
+                    const colors = gradeColors[grade] || { base: '#94a3b8', gradient: '#cbd5e1' };
+                    const gradient = ctx.createLinearGradient(0, 0, ctx.canvas.clientWidth, 0);
+                    gradient.addColorStop(0, colors.base);
+                    gradient.addColorStop(1, colors.gradient);
+                    return gradient;
+                });
+
+                gradeChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: gradeLabels,
+                        datasets: [{
+                            label: 'จำนวนนักเรียน',
+                            data: gradeCounts,
+                            backgroundColor: backgroundColors,
+                            borderColor: isDarkMode ? '#475569' : '#e2e8f0',
+                            borderWidth: 2,
+                            borderRadius: 8,
+                            borderSkipped: false,
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { 
+                                display: false 
+                            },
+                            tooltip: {
+                                enabled: true,
+                                backgroundColor: isDarkMode ? '#1e293b' : '#ffffff',
+                                titleColor: isDarkMode ? '#f1f5f9' : '#1e293b',
+                                bodyColor: isDarkMode ? '#f1f5f9' : '#1e293b',
+                                borderColor: gridColor,
+                                borderWidth: 1,
+                                padding: 10,
+                                cornerRadius: 8,
+                                callbacks: {
+                                    label: function(context) {
+                                        return ` จำนวน: ${context.raw} คน`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { 
+                                beginAtZero: true, 
+                                ticks: { 
+                                    stepSize: 1, 
+                                    color: labelColor,
+                                    font: { weight: 'bold' }
+                                },
+                                grid: { 
+                                    color: gridColor,
+                                    drawBorder: false,
+                                }
+                            },
+                            y: {
+                                ticks: { 
+                                    color: labelColor,
+                                    font: { size: 14, weight: 'bold' }
+                                },
+                                grid: { 
+                                    display: false,
+                                    drawBorder: false,
+                                }
+                            }
+                        },
+                        animation: {
+                            duration: 800,
+                            easing: 'easeInOutQuart'
+                        }
+                    }
+                });
+            }
+            
+            // --- ### 5. MODAL & SETTINGS LOGIC ### ---
+
+            function openSettingsModal() {
+                renderSettings();
+                settingsModal.classList.add('active');
+            }
+
+            function closeSettingsModal() {
+                settingsModal.classList.remove('active');
+            }
+            
+            function renderSettings() {
+                const { gradeCriteria, scoreColumns } = appState.classes[appState.activeClass].settings;
+                
+                // Render Grade Criteria
+                gradeCriteriaContainer.innerHTML = '';
+                gradeCriteria.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = 'grid grid-cols-3 items-center gap-2';
+                    div.innerHTML = `
+                        <label class="font-bold text-center">${c.grade}</label>
+                        <span class="text-center">คะแนน >=</span>
+                        <input type="number" value="${c.minScore}" data-grade="${c.grade}" class="grade-input w-full p-2 border dark:bg-slate-700 dark:border-slate-600 rounded-md text-center">
+                    `;
+                    gradeCriteriaContainer.appendChild(div);
+                });
+
+                // Render Score Columns
+                renderScoreColumnsSettings();
+            }
+
+            function renderScoreColumnsSettings() {
+                 const { scoreColumns } = appState.classes[appState.activeClass].settings;
+                 scoreColumnsContainer.innerHTML = '';
+                 scoreColumns.forEach((col, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'grid grid-cols-10 items-center gap-2';
+                    div.dataset.colId = col.id;
+                    div.innerHTML = `
+                        <input type="text" value="${col.name}" data-field="name" class="col-span-5 p-2 border dark:bg-slate-700 dark:border-slate-600 rounded-md" placeholder="ชื่อคอลัมน์">
+                        <label class="col-span-2 text-right pr-2">น้ำหนัก</label>
+                        <input type="number" step="0.1" value="${col.weight}" data-field="weight" class="col-span-2 p-2 border dark:bg-slate-700 dark:border-slate-600 rounded-md" placeholder="0.0">
+                        ${scoreColumns.length > 1 ? `<button class="remove-column-btn col-span-1 text-red-500 justify-self-center">✖</button>` : ''}
+                    `;
+                    scoreColumnsContainer.appendChild(div);
+                });
+            }
+            
+            function handleSaveSettings() {
+                const newCriteria = [];
+                gradeCriteriaContainer.querySelectorAll('.grade-input').forEach(input => {
+                    newCriteria.push({
+                        grade: input.dataset.grade,
+                        minScore: parseInt(input.value)
+                    });
+                });
+
+                const newColumns = [];
+                scoreColumnsContainer.querySelectorAll('[data-col-id]').forEach(div => {
+                    newColumns.push({
+                        id: div.dataset.colId,
+                        name: div.querySelector('[data-field="name"]').value,
+                        weight: parseFloat(div.querySelector('[data-field="weight"]').value)
+                    });
+                });
+                
+                const totalWeight = newColumns.reduce((sum, col) => sum + col.weight, 0);
+                if (Math.abs(totalWeight - 1.0) > 0.001) { // Check for floating point issues
+                    alert(`ผลรวมของน้ำหนักคะแนนต้องเป็น 1.0 (ปัจจุบันคือ ${totalWeight.toFixed(2)})`);
+                    return;
+                }
+
+                appState.classes[appState.activeClass].settings.gradeCriteria = newCriteria;
+                appState.classes[appState.activeClass].settings.scoreColumns = newColumns;
+
+                saveState();
+                initApp(); // Re-initialize to reflect changes everywhere
+                closeSettingsModal();
+            }
+            
+            // --- ### 6. EVENT HANDLERS ### ---
+            
+            // Theme Toggle
+            themeToggleBtn.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                appState.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+                themeIconLight.classList.toggle('hidden');
+                themeIconDark.classList.toggle('hidden');
+                saveState();
+                // A small delay allows the theme transition to finish before redrawing the chart
+                setTimeout(updateChart, 50);
+            });
+            
+            // Class Management
+            classSelect.addEventListener('change', (e) => {
+                appState.activeClass = e.target.value;
+                saveState();
+                initApp();
+            });
+
+            addClassBtn.addEventListener('click', () => {
+                const className = prompt('กรุณาใส่ชื่อห้องเรียน/วิชาใหม่:');
+                if (className && !appState.classes[className]) {
+                    appState.classes[className] = JSON.parse(JSON.stringify(DEFAULT_STATE.classes['วิชาคณิตศาสตร์พื้นฐาน']));
+                    appState.classes[className].students = []; // Start with no students
+                    appState.activeClass = className;
+                    saveState();
+                    initApp();
+                } else if(className) {
+                    alert('มีชื่อห้องเรียน/วิชานี้อยู่แล้ว');
+                }
+            });
+            
+            deleteClassBtn.addEventListener('click', () => {
+                if (Object.keys(appState.classes).length <= 1) {
+                    alert('ไม่สามารถลบห้องเรียนสุดท้ายได้');
+                    return;
+                }
+                if (confirm(`คุณต้องการลบห้องเรียน "${appState.activeClass}" ใช่หรือไม่?`)) {
+                    delete appState.classes[appState.activeClass];
+                    appState.activeClass = Object.keys(appState.classes)[0];
+                    saveState();
+                    initApp();
+                }
+            });
+
+            // Student Management
+            addStudentForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newStudent = {
+                    id: Date.now(),
+                    name: studentNameInput.value.trim(),
+                    scores: {}
+                };
+                const { scoreColumns } = appState.classes[appState.activeClass].settings;
+                scoreColumns.forEach(col => {
+                    const input = document.getElementById(col.id);
+                    newStudent.scores[col.id] = parseFloat(input.value) || 0;
+                });
+                appState.classes[appState.activeClass].students.push(newStudent);
+                calculateAll();
+                saveState();
+                renderTable();
+                updateStats();
+                updateChart();
+                addStudentForm.reset();
+                studentNameInput.focus();
+            });
+            
+            tableBody.addEventListener('click', (e) => {
+                const deleteBtn = e.target.closest('.delete-btn');
+                if (deleteBtn) {
+                    const row = e.target.closest('tr');
+                    const studentId = parseInt(row.dataset.studentId);
+                    const students = appState.classes[appState.activeClass].students;
+                    appState.classes[appState.activeClass].students = students.filter(s => s.id !== studentId);
+                    calculateAll();
+                    saveState();
+                    renderTable();
+                    updateStats();
+                    updateChart();
+                }
+            });
+            
+            // Inline Editing
+            tableBody.addEventListener('blur', (e) => {
+                 const cell = e.target.closest('[contenteditable="true"]');
+                 if (cell) {
+                     const studentId = parseInt(cell.closest('tr').dataset.studentId);
+                     const student = appState.classes[appState.activeClass].students.find(s => s.id === studentId);
+                     if (!student) return;
+
+                     const field = cell.dataset.field;
+                     if (field === 'name') {
+                         student.name = cell.textContent.trim();
+                     } else if (field === 'scores') {
+                         const colId = cell.dataset.colId;
+                         const newScore = parseFloat(cell.textContent) || 0;
+                         if (newScore >= 0 && newScore <= 100) {
+                            student.scores[colId] = newScore;
+                         } else {
+                            cell.textContent = student.scores[colId]; // Revert if invalid
+                            alert('คะแนนต้องอยู่ระหว่าง 0-100');
+                         }
+                     }
+                     calculateAll();
+                     saveState();
+                     renderTable();
+                     updateStats();
+                     updateChart();
+                 }
+            }, true); // Use capture phase to ensure blur fires correctly
+
+            tableBody.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && e.target.closest('[contenteditable="true"]')) {
+                    e.preventDefault();
+                    e.target.blur();
+                }
+            });
+
+
+            // Search
+            searchInput.addEventListener('input', renderTable);
+            
+            // Settings Modal Events
+            settingsBtn.addEventListener('click', openSettingsModal);
+            closeSettingsBtn.addEventListener('click', closeSettingsModal);
+            saveSettingsBtn.addEventListener('click', handleSaveSettings);
+            
+            addColumnBtn.addEventListener('click', () => {
+                const newId = `custom_${Date.now()}`;
+                appState.classes[appState.activeClass].settings.scoreColumns.push({
+                    id: newId, name: 'คะแนนใหม่', weight: 0.0
+                });
+                renderScoreColumnsSettings();
+            });
+
+            scoreColumnsContainer.addEventListener('click', e => {
+                 const removeBtn = e.target.closest('.remove-column-btn');
+                 if (removeBtn) {
+                     const colDiv = removeBtn.closest('[data-col-id]');
+                     const colId = colDiv.dataset.colId;
+                     let columns = appState.classes[appState.activeClass].settings.scoreColumns;
+                     appState.classes[appState.activeClass].settings.scoreColumns = columns.filter(c => c.id !== colId);
+                     renderScoreColumnsSettings();
+                 }
+            });
+            
+             // Import / Export
+            importCsvBtn.addEventListener('click', () => csvFileInput.click());
+            csvFileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    Papa.parse(file, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: (results) => {
+                           try {
+                                const { scoreColumns } = appState.classes[appState.activeClass].settings;
+                                const nameHeader = results.meta.fields[0]; // Assume first col is name
+                                const newStudents = results.data.map(row => {
+                                    const student = { id: Date.now() + Math.random(), name: row[nameHeader], scores: {} };
+                                    scoreColumns.forEach(col => {
+                                        // Find CSV column that matches setting name
+                                        const csvColName = results.meta.fields.find(f => f.toLowerCase().includes(col.name.toLowerCase()));
+                                        if (csvColName) {
+                                            student.scores[col.id] = parseFloat(row[csvColName]) || 0;
+                                        } else {
+                                            student.scores[col.id] = 0;
+                                        }
+                                    });
+                                    return student;
+                                });
+                                appState.classes[appState.activeClass].students.push(...newStudents);
+                                calculateAll();
+                                saveState();
+                                renderAll();
+                                alert(`นำเข้าข้อมูลนักเรียน ${newStudents.length} คนสำเร็จ!`);
+                           } catch (err) {
+                               alert('ไฟล์ CSV ไม่ถูกต้อง หรือโครงสร้างไม่ตรงกับคอลัมน์คะแนนปัจจุบัน');
+                               console.error(err);
+                           }
+                           csvFileInput.value = ''; // Reset input
+                        }
+                    });
+                }
+            });
+
+            exportPdfBtn.addEventListener('click', () => {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                const currentClass = appState.classes[appState.activeClass];
+                const { settings, students } = currentClass;
+                
+                // Add Kanit font requires complex setup. We need to use a font that jsPDF supports by default.
+                // 'helvetica' is a safe choice.
+                doc.addFont('js/Kanit-Regular.ttf', 'Kanit', 'normal'); // This will likely fail in browser without font file.
+                doc.setFont('helvetica');
+
+                doc.text(`ตารางผลการเรียน: ${appState.activeClass}`, 14, 15);
+                
+                const head = [['#', 'Name', ...settings.scoreColumns.map(c => c.name), 'Total', 'Grade']];
+                const body = students.map((s, i) => [
+                    i + 1,
+                    s.name, // Non-ASCII characters might not render correctly without proper font setup
+                    ...settings.scoreColumns.map(c => s.scores[c.id] || 0),
+                    s.totalScore.toFixed(2),
+                    s.grade
+                ]);
+                
+                doc.autoTable({
+                    head: head,
+                    body: body,
+                    startY: 20,
+                    styles: { font: 'helvetica' }, // Using standard font is safer
+                    headStyles: { fillColor: [41, 128, 185] },
+                    // To handle Thai characters, a custom font would need to be properly embedded.
+                    // This is a complex task for a single HTML file setup.
+                });
+
+                doc.save(`grades_${appState.activeClass.replace(/\s/g, '_')}.pdf`);
+            });
+
+
+            // --- ### 7. INITIALIZATION ### ---
+            function initApp() {
+                loadState();
+                
+                // Apply theme
+                if (appState.theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    themeIconLight.classList.add('hidden');
+                    themeIconDark.classList.remove('hidden');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    themeIconLight.classList.remove('hidden');
+                    themeIconDark.classList.add('hidden');
+                }
+                
+                // Calculate initial scores
+                calculateAll();
+                
+                // Render everything
+                renderAll();
+            }
+
+            // Start the application
+            initApp();
+        });
+    </script>
+</body>
+</html>
+
+
